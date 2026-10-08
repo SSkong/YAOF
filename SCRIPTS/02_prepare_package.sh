@@ -156,6 +156,9 @@ sed -i 's,@CMDLINE@ noinitrd,noinitrd mitigations=off,g' target/linux/x86/image/
 
 ### ADD PKG 部分 ###
 cp -rf ../OpenWrt-Add ./package/new
+# OpenWrt-Add 自带旧版 luci-app-adguardhome (rufengsuixing 1.8.20221120，Lua 版，
+# 与 w9315273 版同名冲突且依赖已删除的 feeds adguardhome 核心包)，必须删除
+rm -rf ./package/new/openwrt_pkgs/luci-app-adguardhome
 rm -rf feeds/packages/net/{xray-core,v2ray-core,v2ray-geodata,sing-box,frp,microsocks,shadowsocks-libev,zerotier,daed,adguardhome}
 rm -rf package/feeds/packages/adguardhome
 rm -rf feeds/luci/applications/{luci-app-frps,luci-app-frpc,luci-app-zerotier,luci-app-adguardhome}
