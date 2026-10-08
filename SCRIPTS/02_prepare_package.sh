@@ -156,11 +156,28 @@ sed -i 's,@CMDLINE@ noinitrd,noinitrd mitigations=off,g' target/linux/x86/image/
 
 ### ADD PKG 部分 ###
 cp -rf ../OpenWrt-Add ./package/new
-rm -rf feeds/packages/net/{xray-core,v2ray-core,v2ray-geodata,sing-box,frp,microsocks,shadowsocks-libev,zerotier,daed}
-rm -rf feeds/luci/applications/{luci-app-frps,luci-app-frpc,luci-app-zerotier}
+rm -rf feeds/packages/net/{xray-core,v2ray-core,v2ray-geodata,sing-box,frp,microsocks,shadowsocks-libev,zerotier,daed,adguardhome}
+rm -rf package/feeds/packages/adguardhome
+rm -rf feeds/luci/applications/{luci-app-frps,luci-app-frpc,luci-app-zerotier,luci-app-adguardhome}
+rm -rf package/feeds/luci/luci-app-adguardhome
 rm -rf feeds/packages/utils/coremark
 sed -i 's/+@KERNEL_DEBUG_INFO_BTF/+vmlinux-btf/' ./package/new/openwrt-einat-ebpf/Makefile
 git clone https://github.com/QiuSimons/vmlinux-btf ./package/new/vmlinux-btf
+
+### AdGuardHome (w9315273 版，nftables 重定向) ###
+git clone --depth 1 https://github.com/w9315273/luci-app-adguardhome.git ./package/new/luci-app-adguardhome
+
+### EasyTier ###
+git clone --depth 1 https://github.com/EasyTier/luci-app-easytier.git /tmp/easytier-src
+cp -rf /tmp/easytier-src/easytier ./package/new/easytier
+cp -rf /tmp/easytier-src/luci-app-easytier ./package/new/luci-app-easytier
+cp -f /tmp/easytier-src/version.mk ./package/new/easytier/version.mk 2>/dev/null || true
+cp -f /tmp/easytier-src/version.mk ./package/new/luci-app-easytier/version.mk 2>/dev/null || true
+rm -rf /tmp/easytier-src
+
+### QoSmate (替代 SQM) ###
+git clone --depth 1 https://github.com/hudra0/qosmate.git ./package/new/qosmate
+git clone --depth 1 https://github.com/hudra0/luci-app-qosmate.git ./package/new/luci-app-qosmate
 
 ### 获取额外的 LuCI 应用、主题和依赖 ###
 # RK
@@ -254,6 +271,8 @@ find ./target/linux/ -name "config-${KERNEL_VERSION}" | xargs -I{} sh -c "echo '
 # Lets Fuck
 mkdir -p package/base-files/files/usr/bin
 cp -rf ../OpenWrt-Add/fuck ./package/base-files/files/usr/bin/fuck
+# 修改默认管理 IP 为 192.168.20.1
+sed -i 's/192\.168\.1\.1/192.168.20.1/g' package/base-files/files/bin/config_generate
 # 生成默认配置及缓存
 rm -rf .config
 sed -i 's,CONFIG_WERROR=y,# CONFIG_WERROR is not set,g' target/linux/generic/config-${KERNEL_VERSION}
