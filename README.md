@@ -27,7 +27,7 @@
 - **Banana Pi BPI-R4**（MediaTek MT7988A，4× A73 / 4GB RAM，2× 10G SFP+ + 4× GbE）
 - OpenWrt 25.12 官方树自带完整支持（`bananapi_bpi-r4`，同 kernel 6.12.94，无需任何 backport）
 - 同时覆盖 **eMMC 与 SPI-NAND** 两种启动介质：产出 `emmc-preloader/fip/gpt` 与 `snand-preloader/fip` 全套引导件 + `squashfs-sysupgrade.itb` + `sdcard.img.gz`（SD 卡整体启动镜像）
-- Wi-Fi：内置 MT7915 驱动（kmod-mt7915e），支持官方 M.2 E-key 无线子卡
+- Wi-Fi：默认不含（本板无无线子卡）；M.2 E-key 槽日后插卡可 `opkg install kmod-mt7915e kmod-mt7915-firmware wpad-openssl` 补装
 - 第一块网口布局沿用 filogic 官方默认 board.d
 
 ### 固件特性（两设备通用）
