@@ -289,6 +289,15 @@ wget https://github.com/coolsnowwolf/lede/raw/refs/heads/master/target/linux/roc
 rm -rf ./feeds/packages/lang/node
 rm -rf ./package/new/feeds_packages_lang_node-prebuilt
 cp -rf ../OpenWrt-Add/feeds_packages_lang_node-prebuilt ./feeds/packages/lang/node
+### node-prebuilt 修复（OpenWrt-Add 移动目标的两处缺陷，2025 实测）###
+#  (1) 原 PKG_VERSION 动态拉取 GitHub tags，CI 中易瞬时为空 → 一次性解析(带重试)钉入 Makefile
+#  (2) $(ARCH_PACKAGES) 在本 fork 展开为 aarch64_cortex_a53(下划线)，而 sbwml asset 名为
+#      aarch64_cortex-a53(连字符) → 统一替换为连字符形式（H68K/BPI-R4 均为 aarch64）
+NODE_VER="$(curl -fsSL --retry 3 --max-time 30 https://api.github.com/repos/sbwml/node_workflow/tags 2>/dev/null | grep '"name"' | head -n 1 | sed -E 's/.*"name": "v([^"]+)".*/\1/' || true)"
+[ -n "$NODE_VER" ] || NODE_VER="22.23.2"
+echo "node-prebuilt: pinned PKG_VERSION=${NODE_VER}, asset=aarch64_cortex-a53"
+sed -i -E "s|^PKG_VERSION:=.*|PKG_VERSION:=${NODE_VER}|" feeds/packages/lang/node/Makefile
+sed -i 's#\$(ARCH_PACKAGES)#aarch64_cortex-a53#g' feeds/packages/lang/node/Makefile
 # 更换 golang 版本
 rm -rf ./feeds/packages/lang/golang
 cp -rf ../openwrt_pkg_ma/lang/golang ./feeds/packages/lang/golang
