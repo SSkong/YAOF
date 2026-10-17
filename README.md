@@ -38,7 +38,7 @@
 - 内核：BBRv3、LRNG（含 jitter 熵源）、Broadcom Fullcone-NAT、fullcone6、NAT6、NETKIT、BTF（vmlinux-btf，供 DAE 使用）（Shortcut-FE 已随上游 2026-10-16 弃用移除）
 - O2 编译优化，TEO CPU 空闲调度器，mitigations=off
 - 内核 zram 优化：`vm.swappiness=100` + `vm.page-cluster=0`（配合 zram-swap）
-- **首次启动自动利用 eMMC 剩余空间**：自动将根盘最后的未分配空间建 ext4 分区（≥1GiB 才动手）并挂载到 **/opt**（适合 Docker 数据目录、OpenList2 网盘缓存、Entware 等大文件场景；`logread | grep h68k-data` 可查看结果）
+- **首次启动自动利用 eMMC 剩余空间（H68K 与 BPI-R4 均生效）**：自动将根盘最后的未分配空间建 ext4 分区（≥1GiB 才动手）并挂载到 **/opt**。H68K 走 root=PARTUUID 定位；BPI-R4 走 FIT 布局的 `PARTLABEL=production` 定位（production 分区之后即全部未分配尾部）。幂等防御：已有 LABEL=data 分区或 /opt 已挂载则跳过（ImmortalWrt 官方固件转来自带 primary 分区挂 /opt 的情况不会重复操作）。`logread | grep h68k-data` 可查看结果
 
 ### 预置插件
 

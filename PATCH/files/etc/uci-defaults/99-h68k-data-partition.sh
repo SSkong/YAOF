@@ -1,5 +1,6 @@
 #!/bin/sh
-# H68K 首启自动格式化剩余空间并挂载 /opt（ext4）
+# H68K / BPI-R4 首启自动格式化剩余空间并挂载 /opt（ext4）
+# - H68K：root=PARTUUID 定位；BPI-R4：root=/dev/fit0（FIT 虚拟设备）→ PARTLABEL=production 定位
 # uci-defaults 机制：首次启动执行一次，成功后脚本自删；幂等防御：已有 data 卷标分区则跳过
 # 安全边界：只处理根文件系统所在的 mmc 设备；只使用最后一个分区之后的未分配尾部空间（≥1GiB 才动手）
 
@@ -13,6 +14,10 @@ case "$root" in
 	PARTUUID=*)
 		puuid="${root#PARTUUID=}"
 		rdev="$(blkid -l -t PARTUUID="$puuid" -o device)" ;;
+	PARTLABEL=*|/dev/fit*|fit*)
+		# MediaTek filogic FIT 布局（BPI-R4 等）：root=/dev/fit0 是 U-Boot 制作的虚拟设备，
+		# 真实承载分区为 GPT 的 PARTLABEL=production；eMMC 与 sdcard 同盘
+		rdev="$(blkid -l -t PARTLABEL=production -o device)" ;;
 	/dev/mmcblk*)
 		rdev="$root" ;;
 	*)
@@ -21,14 +26,16 @@ esac
 [ -n "$rdev" ] || exit 0
 
 case "$rdev" in
-	/dev/mmcblk*p[0-9]*) disk="${rdev%p[0-9]*}" ;;	# /dev/mmcblk0p5 -> /dev/mmcblk0
+	/dev/mmcblk*p[0-9]*) disk="${rdev%p[0-9]*}" ;;	# /dev/mmcblk0p7 -> /dev/mmcblk0
 	*) exit 0 ;;					# 非 mmc 分区场景不动
 esac
 [ -n "$disk" ] || exit 0
 [ -b "$disk" ] || exit 0
 
-# 2) 幂等：已存在 data 卷标分区则退出
+# 2) 幂等：已存在 data 卷标分区、或 /opt 已有挂载，则退出
+#（BPI-R4 从 ImmortalWrt 官方固件转来时可能带着它建的 primary 分区挂在 /opt）
 blkid | grep -q 'LABEL="data"' && exit 0
+mount | grep -q ' on /opt ' && exit 0
 
 # 3) 计算最后一个分区结束位置（MiB）与磁盘容量
 last_end="$(parted -s "$disk" unit MiB print 2>/dev/null | awk '$1 ~ /^[0-9]+$/ {e=int($3)} END{print e}')"
