@@ -29,6 +29,7 @@
 - 同时覆盖 **eMMC 与 SPI-NAND** 两种启动介质：产出 `emmc-preloader/fip/gpt` 与 `snand-preloader/fip` 全套引导件 + `squashfs-sysupgrade.itb` + `sdcard.img.gz`（SD 卡整体启动镜像）
 - Wi-Fi：默认不含（本板无无线子卡）；M.2 E-key 槽日后插卡可 `opkg install kmod-mt7915e kmod-mt7915-firmware wpad-openssl` 补装
 - 第一块网口布局沿用 filogic 官方默认 board.d
+- **BPI-R4 专属应用**：Fan Control（官方金属壳风扇 PWM 调速）、SFPmon（SFP+ 光口 SFF-8472 数字诊断：温度/电压/光功率）、MTK-WED（MediaTek PPE/WED 硬件卸载状态页与开关）
 
 ### 固件特性（两设备通用）
 

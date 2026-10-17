@@ -19,6 +19,16 @@ sed -i -e 's/^\(.\).*vermagic$/\1cp $(TOPDIR)\/.vermagic $(LINUX_DIR)\/.vermagic
 # BPI-R4 的 eMMC/sdcard root 同样适用——rootfs 分区后的未分配尾部扩 /opt）
 cp -rf ../PATCH/files ./files
 
+# BPI-R4 专属包（仅 mediatek/filogic 相关，放设备层而非共用的 02_prepare_package.sh）
+# 风扇控制（@TARGET_mediatek_filogic 限定，BPI-R4 官方金属壳风扇 PWM 调速）
+git clone --depth 1 https://github.com/ntbowen/luci-app-fan-bpir4.git ./package/new/luci-app-fan-bpir4
+# SFP/SFP+ 光口监控（SFF-8472 数字诊断：温度/电压/光功率，BPI-R4 双 10G SFP+ 用）
+git clone --depth 1 https://github.com/localhost-copilot/luci-app-sfpmon.git ./package/new/luci-app-sfpmon
+# MediaTek PPE/WED 硬件卸载状态页（flow table、WED、口状态、硬件加速开关；嵌套目录取内层）
+git clone --depth 1 https://github.com/z21100644/luci-app-mtk-wed.git /tmp/mtkwed-src
+cp -rf /tmp/mtkwed-src/luci-app-mtk-wed ./package/new/luci-app-mtk-wed
+rm -rf /tmp/mtkwed-src
+
 # 默认管理 IP：192.168.10.1（与 H68K 的 192.168.20.1 区分，双设备同网段并存不打架）
 sed -i 's/192\.168\.1\.1/192.168.10.1/g' package/base-files/files/bin/config_generate
 
