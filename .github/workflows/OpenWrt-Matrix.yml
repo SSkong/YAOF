@@ -20,7 +20,7 @@ on:
   workflow_dispatch:
     inputs:
       targets:
-        description: "Select target platforms (comma separated, only H68K available; leave blank for all, case-insensitive)"
+        description: "Select target platforms (comma separated: H68K, BPI-R4; leave blank for all, case-insensitive)"
         required: false
         type: string
         default: ""
@@ -43,9 +43,10 @@ jobs:
       - id: set-matrix
         shell: bash
         run: |
-          # 本仓库专精 H68K（其他设备已裁剪，需要时从上游 QiuSimons/YAOF 恢复）
+          # 本仓库支持 H68K 与 BPI-R4（其他设备已裁剪，需要时从上游 QiuSimons/YAOF 恢复）
           all_targets='[
-            {"name": "H68K", "script_dir": "H68K", "arch": "rockchip/armv8", "arch_suffix": "3568"}
+            {"name": "H68K", "script_dir": "H68K", "arch": "rockchip/armv8", "arch_suffix": "3568"},
+            {"name": "BPI-R4", "script_dir": "BPI-R4", "arch": "mediatek/filogic", "arch_suffix": "mt7988"}
           ]'
 
           # User selected targets
@@ -72,6 +73,7 @@ jobs:
       sha_match: dummy
       ext4_zip: dummy
       sfs_zip: dummy
+      factory_zip: ""
       sysupgrade_glob: dummy
       openwrt_source_name: dummy
       TARGET_DEVICE_ARCH: dummy
@@ -109,10 +111,19 @@ jobs:
           sha_match="$name_lower"
 
           # ext4_zip/sfs_zip rule
+          factory_zip=""
           if [ "$name_lower" = "x86" ]; then
             ext4_zip='*ext4-combined*'
             sfs_zip='*squashfs-combined*'
             sysupgrade_glob='*combined-efi.img*'
+          elif [ "$name_lower" = "bpi-r4" ]; then
+            # mediatek filogic 产出为 itb（squashfs-only，无 ext4 变体）+ sdcard.img.gz +
+            # preloader/fip/gpt 引导件：sysupgrade_glob 收全部 bpi-r4 镜像进 artifact，
+            # factory zip 整包打包（含引导件），sdcard 镜像走 ext4 位（SD 卡初始启动专用）
+            ext4_zip="*$name_lower*sdcard*"
+            sfs_zip="*$name_lower*squashfs*"
+            factory_zip="*$name_lower*"
+            sysupgrade_glob="*$name_lower*"
           else
             ext4_zip="*$name_lower*ext4*"
             sfs_zip="*$name_lower*squashfs*"
@@ -131,6 +142,7 @@ jobs:
           sha_match=$sha_match
           ext4_zip=$ext4_zip
           sfs_zip=$sfs_zip
+          factory_zip=$factory_zip
           sysupgrade_glob=$sysupgrade_glob
           openwrt_source_name=$openwrt_source_name
           EOF
@@ -302,8 +314,10 @@ jobs:
           gzip --best *.img
           ls -Ahl
           sha256sum openwrt*${{ env.sha_match }}* | tee ${{ env.artifact_prefix }}-$(date +%Y-%m-%d)-${{ env.latest_release }}.sha256sum
-          zip ${{ env.artifact_prefix }}-$(date +%Y-%m-%d)-${{ env.latest_release }}-ext4.zip ${{ env.ext4_zip }}
-          zip ${{ env.artifact_prefix }}-$(date +%Y-%m-%d)-${{ env.latest_release }}-sfs.zip ${{ env.sfs_zip }}
+          # zip 容错：目标变体缺失（如 filogic 无 ext4、rockchip 无 factory）时跳过而非挂步
+          ls ${{ env.ext4_zip }} >/dev/null 2>&1 && zip ${{ env.artifact_prefix }}-$(date +%Y-%m-%d)-${{ env.latest_release }}-ext4.zip ${{ env.ext4_zip }} || true
+          ls ${{ env.sfs_zip }} >/dev/null 2>&1 && zip ${{ env.artifact_prefix }}-$(date +%Y-%m-%d)-${{ env.latest_release }}-sfs.zip ${{ env.sfs_zip }} || true
+          [ -n "${{ env.factory_zip }}" ] && ls ${{ env.factory_zip }} >/dev/null 2>&1 && zip ${{ env.artifact_prefix }}-$(date +%Y-%m-%d)-${{ env.latest_release }}-factory.zip ${{ env.factory_zip }} || true
           ls -Ahl
 
       - name: Create release
