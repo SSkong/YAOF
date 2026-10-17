@@ -61,9 +61,10 @@ cp -rf ../openwrt_ma/package/network/config/firewall4 ./package/network/config/f
 cp -rf ../PATCH/kernel/arm/* ./target/linux/generic/hack-${KERNEL_VERSION}/
 # BBRv3
 cp -rf ../PATCH/kernel/bbr3/* ./target/linux/generic/backport-${KERNEL_VERSION}/
-# LRNG
-cp -rf ../PATCH/kernel/lrng/* ./target/linux/generic/hack-${KERNEL_VERSION}/
-echo '
+# LRNG（设备可关：BPI-R4/MT7988A 实测 LRNG 开机挂死——由 workflow 矩阵 enable_lrng 字段注入 ENABLE_LRNG 环境变量控制，BPI-R4=0 跳过）
+if [ "${ENABLE_LRNG:-1}" = "1" ]; then
+    cp -rf ../PATCH/kernel/lrng/* ./target/linux/generic/hack-${KERNEL_VERSION}/
+    echo '
 # CONFIG_RANDOM_DEFAULT_IMPL is not set
 CONFIG_LRNG=y
 CONFIG_LRNG_DEV_IF=y
@@ -74,6 +75,7 @@ CONFIG_LRNG_CPU=y
 CONFIG_LRNG_SELFTEST=y
 # CONFIG_LRNG_SELFTEST_PANIC is not set
 ' >>./target/linux/generic/config-${KERNEL_VERSION}
+fi
 # NETKIT
 echo '
 CONFIG_NETKIT=y

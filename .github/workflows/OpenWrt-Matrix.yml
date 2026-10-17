@@ -45,8 +45,8 @@ jobs:
         run: |
           # 本仓库支持 H68K 与 BPI-R4（其他设备已裁剪，需要时从上游 QiuSimons/YAOF 恢复）
           all_targets='[
-            {"name": "H68K", "script_dir": "H68K", "arch": "rockchip/armv8", "arch_suffix": "3568"},
-            {"name": "BPI-R4", "script_dir": "BPI-R4", "arch": "mediatek/filogic", "arch_suffix": "mt7988"}
+            {"name": "H68K", "script_dir": "H68K", "arch": "rockchip/armv8", "arch_suffix": "3568", "enable_lrng": "1"},
+            {"name": "BPI-R4", "script_dir": "BPI-R4", "arch": "mediatek/filogic", "arch_suffix": "mt7988", "enable_lrng": "0"}
           ]'
 
           # User selected targets
@@ -199,6 +199,8 @@ jobs:
 
       - name: Prepare Package
         working-directory: ${{ github.workspace }}/openwrt
+        env:
+          ENABLE_LRNG: ${{ matrix.enable_lrng }}
         run: |
           cp -r ../SCRIPTS/. ./
           /bin/bash 02_prepare_package.sh
