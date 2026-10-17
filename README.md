@@ -52,7 +52,7 @@
 | 新增工具 | Fluxora（WAN 流量监控）、Online Upgrade（在线升级）、SubStore（订阅管理）、Ghacc（GitHub 加速）、OxiDNS、看门狗（登录防护） |
 | QoS | SQM（官方 luci-app-sqm + sqm-scripts，cake/fq_codel；曾用 QoSmate 因其 hotplug 在多网口设备自激励循环已移除） |
 | 存储/文件 | HarborFile Pro（文件管理，ucode 后端）、OpenList2（OpenList/AList 网盘挂载，sbwml）、DiskMan（磁盘管理，lisaac） |
-| 其他 | DDNS、网易云解锁、UPnP、迅雷快鸟、网络唤醒、USB 打印、Zram Swap、WolPlus、Natmap、Bandix、Einat |
+| 其他 | DDNS、网易云解锁、UPnP、迅雷快鸟、网络唤醒、USB 打印、Zram Swap、WolMon（唤醒+在线监控）、Natmap、Bandix、Einat |
 
 - 完整功能由 SEED/H68K/config.seed 定义，可自行裁剪
 - ss 协议在 armv8 上实现了 aes 硬件加速（请<b>仅使用 aead 加密</b>的连接方式）

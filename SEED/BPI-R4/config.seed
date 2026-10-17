@@ -151,7 +151,7 @@ CONFIG_PACKAGE_luci-app-substore=y
 CONFIG_PACKAGE_ghacc=y
 CONFIG_PACKAGE_luci-app-oxidns=y
 CONFIG_PACKAGE_etherwake=y
-CONFIG_PACKAGE_luci-app-wolplus=y
+CONFIG_PACKAGE_luci-app-wolmon=y
 CONFIG_PACKAGE_luci-theme-shadcn=y
 
 ### NODE ###

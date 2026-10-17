@@ -272,10 +272,15 @@ git clone --depth 1 https://github.com/Arthur97172/luci-app-substore.git ./packa
 git clone --depth 1 https://github.com/sqchr888/luci-app-ghacc.git ./package/new/luci-app-ghacc
 # OxiDNS (DNS 工具)
 git clone --depth 1 https://github.com/svenshi/luci-app-oxidns.git ./package/new/luci-app-oxidns
-# WoLPlus (sundaqiang 网络唤醒新版，PKG_NAME=luci-app-wolplus，依赖 etherwake)
-# OpenWrt-Add 的旧版 luci-app-services-wolplus 是同一作者的早期包名，删除防功能重复
+# 网络唤醒监控（my1639963/luci-app-wolmon 替换 wolplus：唤醒 + 在线状态监控一体，
+# ARP/ping 轮询 + 唤醒后 IP 自动发现）。原 OpenWrt-Add 的 wolplus/services-wolplus 均删。
 rm -rf ./package/new/luci-app-services-wolplus ./package/new/openwrt_pkgs/luci-app-services-wolplus
-git clone --depth 1 https://github.com/sakura-builder1/luci-app-wolplus.git ./package/new/luci-app-wolplus
+rm -rf ./package/new/luci-app-wolplus
+git clone --depth 1 https://github.com/my1639963/luci-app-wolmon.git /tmp/wolmon-src
+cp -rf /tmp/wolmon-src/src/luci-app-wolmon ./package/new/luci-app-wolmon
+rm -rf /tmp/wolmon-src
+# wolmon Makefile 用相对路径 include ../../luci.mk（feeds 内布局），改 feeds 绝对路径
+sed -i 's|^include ../../luci.mk$|include $(TOPDIR)/feeds/luci/luci.mk|' ./package/new/luci-app-wolmon/Makefile
 # Shadcn 主题（shadcn/ui 设计语言，现代侧边栏 LuCI 主题）
 git clone --depth 1 https://github.com/eamonxg/luci-theme-shadcn.git ./package/new/luci-theme-shadcn
 
