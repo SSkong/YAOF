@@ -136,15 +136,9 @@ sed -i 's,@CMDLINE@ noinitrd,noinitrd mitigations=off,g' target/linux/x86/image/
 
 ### ADD PKG 部分 ###
 cp -rf ../OpenWrt-Add ./package/new
-# sing-box (imm_pkg, OpenWrt-Add 2026-10 引入 1.14.3): naive outbound 改为 cronet 实现，
-# 依赖 libcronet 静态库包——OpenWrt-Add 的 imm_pkg 子集不带该包（上游 ImmortalWrt 在
-# libs/libcronet，且需 gn/host 编 Chromium 网络栈，CI 过重）。这里禁用 naive outbound：
-# 删 DEPENDS 的 libcronet 引用与 tags 条件行，保链接通过(-lcronet 不再被注入)。
-# naive 协议仅 sing-box 的一个出口，本固件另有 ssr-plus/passwall/openclash/nikki/dae 等客户端。
-sed -i 's/+SING_BOX_BUILD_NAIVE_OUTBOUND:libcronet//; s/+SING_BOX_TINY_BUILD_NAIVE_OUTBOUND:libcronet//' \
-    ./package/new/imm_pkg/sing-box/Makefile
-sed -i '/CONFIG_SING_BOX_BUILD_NAIVE_OUTBOUND),with_naive_outbound/d; /CONFIG_SING_BOX_TINY_BUILD_NAIVE_OUTBOUND),with_naive_outbound/d' \
-    ./package/new/imm_pkg/sing-box/Makefile
+# sing-box naive outbound：OpenWrt-Add 的 imm_pkg 已自带 libcronet 包（配 gn/host 基建，
+# 由上游 b8c59d3+5a52e68 引入），naive 协议原生支持，无需再打禁用钉子（历史版本 imm_pkg
+# 缺 libcronet 曾致链接失败，当时以 sed 禁 naive 绕过，现已不需要）。
 
 ### DAE / HONK (189160 fork 替换 OpenWrt-Add 版) ###
 # OpenWrt-Add 自带 dae/honk 全套（luci-app-dae 内含源码编译 dae、luci-app-daed、luci-app-honk 内含 honk），删除防同名顶替
