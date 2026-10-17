@@ -42,6 +42,9 @@ sed -i -e 's/^\(.\).*vermagic$/\1cp $(TOPDIR)\/.vermagic $(LINUX_DIR)\/.vermagic
 # 预配置一些插件
 cp -rf ../PATCH/files ./files
 
+# 默认管理 IP：192.168.20.1（BPI-R4 为 192.168.10.1，见其 02_target_only）
+sed -i 's/192\.168\.1\.1/192.168.20.1/g' package/base-files/files/bin/config_generate
+
 find ./ -name *.orig | xargs rm -f
 find ./ -name *.rej | xargs rm -f
 

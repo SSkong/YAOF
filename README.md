@@ -32,7 +32,7 @@
 
 ### 固件特性（两设备通用）
 
-- 基于原生 OpenWrt 25.12，默认管理 IP **192.168.20.1**
+- 基于原生 OpenWrt 25.12，默认管理 IP 按设备区分：**H68K = 192.168.20.1**，**BPI-R4 = 192.168.10.1**（双设备同网段并存不冲突）
 - 内置升级功能可用，物理 Reset 按键可用，可无脑 opkg kmod
 - 内核：BBRv3、LRNG（含 jitter 熵源）、Broadcom Fullcone-NAT、fullcone6、NAT6、NETKIT、BTF（vmlinux-btf，供 DAE 使用）（Shortcut-FE 已随上游 2026-10-16 弃用移除）
 - O2 编译优化，TEO CPU 空闲调度器，mitigations=off
@@ -63,7 +63,7 @@
 2. **BPI-R4 产物**：`-sfs.zip`（sysupgrade.itb）、`-ext4.zip`（sdcard.img.gz，SD 卡烧录），`-factory.zip`（预加载/引导整包，eMMC/NAND 从零刷写）；H68K 产物为 `-ext4.zip` / `-sfs.zip`（sysupgrade.img）
 3. **下载固件**：[Releases](https://github.com/SSkong/YAOF/releases)（编译成功自动发布）
 4. **刷机**：H68K 走 rockchip 常规方式（RK 开发工具 / dd / SD 卡）；BPI-R4 最简流程 = `sdcard.img.gz` dd 到 TF 卡直接启动，后续从 LuCI 用 sysupgrade.itb 升级
-5. 登录：`192.168.20.1`，root（初始无密码，OpenWrt 默认）
+5. 登录：H68K `192.168.20.1` / BPI-R4 `192.168.10.1`，root（初始无密码，OpenWrt 默认）
 
 ### 源码结构（相对上游的定制）
 

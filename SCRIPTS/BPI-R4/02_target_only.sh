@@ -19,6 +19,9 @@ sed -i -e 's/^\(.\).*vermagic$/\1cp $(TOPDIR)\/.vermagic $(LINUX_DIR)\/.vermagic
 # BPI-R4 的 eMMC/sdcard root 同样适用——rootfs 分区后的未分配尾部扩 /opt）
 cp -rf ../PATCH/files ./files
 
+# 默认管理 IP：192.168.10.1（与 H68K 的 192.168.20.1 区分，双设备同网段并存不打架）
+sed -i 's/192\.168\.1\.1/192.168.10.1/g' package/base-files/files/bin/config_generate
+
 find ./ -name *.orig | xargs rm -f
 find ./ -name *.rej | xargs rm -f
 

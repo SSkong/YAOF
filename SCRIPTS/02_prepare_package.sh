@@ -377,8 +377,9 @@ find ./target/linux/ -name "config-${KERNEL_VERSION}" | xargs -I{} sh -c "echo '
 # Lets Fuck
 mkdir -p package/base-files/files/usr/bin
 cp -rf ../OpenWrt-Add/fuck ./package/base-files/files/usr/bin/fuck
-# 修改默认管理 IP 为 192.168.20.1
-sed -i 's/192\.168\.1\.1/192.168.20.1/g' package/base-files/files/bin/config_generate
+# 默认管理 IP 按设备区分（下沉到各设备 02_target_only.sh）：
+#   H68K   -> 192.168.20.1
+#   BPI-R4 -> 192.168.10.1
 # 生成默认配置及缓存
 rm -rf .config
 sed -i 's,CONFIG_WERROR=y,# CONFIG_WERROR is not set,g' target/linux/generic/config-${KERNEL_VERSION}
