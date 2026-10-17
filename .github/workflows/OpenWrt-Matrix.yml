@@ -20,7 +20,7 @@ on:
   workflow_dispatch:
     inputs:
       targets:
-        description: "Select target platforms (comma separated, e.g. R2C,R2S,R3S,R4S,X86 ;leave blank for all, case-insensitive)"
+        description: "Select target platforms (comma separated, only H68K available; leave blank for all, case-insensitive)"
         required: false
         type: string
         default: ""
@@ -43,13 +43,9 @@ jobs:
       - id: set-matrix
         shell: bash
         run: |
-          # All possible targets
+          # 本仓库专精 H68K（其他设备已裁剪，需要时从上游 QiuSimons/YAOF 恢复）
           all_targets='[
-            {"name": "R2C", "script_dir": "R2S", "arch": "rockchip/armv8", "arch_suffix": "3328"},
-            {"name": "R2S", "script_dir": "R2S", "arch": "rockchip/armv8", "arch_suffix": "3328"},
-            {"name": "R3S", "script_dir": "R4S", "arch": "rockchip/armv8", "arch_suffix": "3566"},
-            {"name": "R4S", "script_dir": "R4S", "arch": "rockchip/armv8", "arch_suffix": "3399"},
-            {"name": "X86", "script_dir": "X86", "arch": "x86/64", "arch_suffix": ""}
+            {"name": "H68K", "script_dir": "H68K", "arch": "rockchip/armv8", "arch_suffix": "3568"}
           ]'
 
           # User selected targets
@@ -158,6 +154,8 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@main
+        with:
+          fetch-depth: 1
 
       - name: Init build dependencies
         env:
@@ -170,6 +168,9 @@ jobs:
           sudo -E npm install -g pnpm
           sudo -E npm install -g n
           sudo -E n stable
+          # sudo -E npm 保留 HOME，会把缓存以 root 属主写进 /home/runner/.npm，
+          # 编译期 smartdns-webui 等包的 npm install 以 runner 用户运行时 EACCES 崩溃
+          sudo chown -R runner:runner /home/runner/.npm
           pip3 install --user -U pylibfdt --break-system-packages
           sudo -E apt-get -qq autoremove --purge
           sudo -E apt-get -qq clean
@@ -262,6 +263,13 @@ jobs:
           fi
           make download -j50
           make -j$(($(nproc) + 1)) package/network/utils/nftables/refresh V=s
+          # OpenWrt 顶层 make download 为容错设计（包下载失败仍 exit 0），
+          # -j50 并行下的失败会被静默吞掉，直到编译期才暴露（可能浪费数小时）。
+          # 串行复扫一次让失败项浮出为 warning（缓存命中秒过，仅失败包重试）
+          dl_errs=$(make download -j1 2>&1 | grep -c "ERROR: package" || true)
+          if [ "${dl_errs}" -gt 0 ]; then
+            echo "::warning::make download 存在 ${dl_errs} 个失败包，编译阶段将重试（可能失败，请关注 Compile 阶段日志）"
+          fi
 
       # build_firmware
       - name: Compile Openwrt
@@ -271,7 +279,6 @@ jobs:
         continue-on-error: true
         run: |
           IGNORE_ERRORS=1 make -j$(($(nproc) + 1))
-          echo $?
       - name: If Error
         if: steps.compileopenwrt.outcome == 'failure'
         working-directory: ${{ github.workspace }}/openwrt
@@ -315,12 +322,3 @@ jobs:
 
       - name: Print Disk Space After
         run: df -h
-
-      - name: Trigger badge sync for current platform
-        if: github.workflow == 'OpenWrt-Matrix' && inputs.build_firmware && steps.create_release.outcome != 'skipped' && always()
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "Triggering badge sync for ${{ matrix.name }} with status: ${{ steps.create_release.outcome }}"
-          gh workflow run "${{ matrix.name }}-OpenWrt.yml" \
-            --field badge_status="${{ steps.create_release.outcome }}" || echo "Failed to trigger ${{ matrix.name }} workflow"

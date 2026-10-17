@@ -1,0 +1,32 @@
+name: H68K-OpenWrt
+
+on:
+  workflow_dispatch:
+    inputs:
+      upload_source:
+        description: "Upload source folder before build"
+        required: false
+        type: boolean
+        default: false
+      build_firmware:
+        description: "Build and publish firmware"
+        required: false
+        type: boolean
+        default: true
+  watch:
+    types: started
+
+# 同一时间只允许一个 H68K 编译 run：手动触发与 star 触发不会并行占配额
+# cancel-in-progress=false：不打断进行中的编译，新触发排队（前一个排队 run 会被取代）
+concurrency:
+  group: h68k-build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    uses: ./.github/workflows/OpenWrt-Matrix.yml
+    if: github.event.repository.owner.id == github.event.sender.id
+    with:
+      targets: "H68K"
+      upload_source: ${{ github.event_name == 'workflow_dispatch' && inputs.upload_source }}
+      build_firmware: ${{ (github.event_name == 'workflow_dispatch' && inputs.build_firmware) || github.event_name != 'workflow_dispatch' }}
