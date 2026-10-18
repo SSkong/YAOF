@@ -16,11 +16,15 @@ on:
         required: false
         type: boolean
         default: true
+      profile:
+        required: false
+        type: string
+        default: "auto"
 
   workflow_dispatch:
     inputs:
       targets:
-        description: "Select target platforms (comma separated, e.g. R2C,R2S,R3S,R4S,X86 ;leave blank for all, case-insensitive)"
+        description: "Select target platforms (comma separated: H68K, BPI-R4; leave blank for all, case-insensitive)"
         required: false
         type: string
         default: ""
@@ -34,6 +38,15 @@ on:
         required: false
         type: boolean
         default: true
+      profile:
+        description: "Profile: auto (no-cache->minimal, else full) / minimal / full"
+        required: false
+        type: choice
+        default: auto
+        options:
+          - auto
+          - minimal
+          - full
 
 jobs:
   setup:
@@ -43,13 +56,10 @@ jobs:
       - id: set-matrix
         shell: bash
         run: |
-          # All possible targets
+          # 本仓库支持 H68K 与 BPI-R4（其他设备已裁剪，需要时从上游 QiuSimons/YAOF 恢复）
           all_targets='[
-            {"name": "R2C", "script_dir": "R2S", "arch": "rockchip/armv8", "arch_suffix": "3328"},
-            {"name": "R2S", "script_dir": "R2S", "arch": "rockchip/armv8", "arch_suffix": "3328"},
-            {"name": "R3S", "script_dir": "R4S", "arch": "rockchip/armv8", "arch_suffix": "3566"},
-            {"name": "R4S", "script_dir": "R4S", "arch": "rockchip/armv8", "arch_suffix": "3399"},
-            {"name": "X86", "script_dir": "X86", "arch": "x86/64", "arch_suffix": ""}
+            {"name": "H68K", "script_dir": "H68K", "arch": "rockchip/armv8", "arch_suffix": "3568", "enable_lrng": "1"},
+            {"name": "BPI-R4", "script_dir": "BPI-R4", "arch": "mediatek/filogic", "arch_suffix": "mt7988", "enable_lrng": "0"}
           ]'
 
           # User selected targets
@@ -70,12 +80,17 @@ jobs:
 
   build:
     needs: setup
+    # 首编冷缓存（如 BPI-R4 全量 world）可能超过 GitHub 默认单 job 6h 超时；放宽到 10h 防超时被杀
+    timeout-minutes: 600
     env: # default values, will be overridden later
       seed: dummy
+      seed_file: config.seed
+      profile: auto
       artifact_prefix: dummy
       sha_match: dummy
       ext4_zip: dummy
       sfs_zip: dummy
+      factory_zip: ""
       sysupgrade_glob: dummy
       openwrt_source_name: dummy
       TARGET_DEVICE_ARCH: dummy
@@ -113,10 +128,19 @@ jobs:
           sha_match="$name_lower"
 
           # ext4_zip/sfs_zip rule
+          factory_zip=""
           if [ "$name_lower" = "x86" ]; then
             ext4_zip='*ext4-combined*'
             sfs_zip='*squashfs-combined*'
             sysupgrade_glob='*combined-efi.img*'
+          elif [ "$name_lower" = "bpi-r4" ]; then
+            # mediatek filogic 产出为 itb（squashfs-only，无 ext4 变体）+ sdcard.img.gz +
+            # preloader/fip/gpt 引导件：sysupgrade_glob 收全部 bpi-r4 镜像进 artifact，
+            # factory zip 整包打包（含引导件），sdcard 镜像走 ext4 位（SD 卡初始启动专用）
+            ext4_zip="*$name_lower*sdcard*"
+            sfs_zip="*$name_lower*squashfs*"
+            factory_zip="*$name_lower*"
+            sysupgrade_glob="*$name_lower*"
           else
             ext4_zip="*$name_lower*ext4*"
             sfs_zip="*$name_lower*squashfs*"
@@ -129,14 +153,22 @@ jobs:
           # openwrt_source_name archive name
           openwrt_source_name="openwrt-source-${{ matrix.name }}-${workerid}.tar"
 
+          # TARGET_DEVICE_ARCH（cache mixkey，需在 Cache 恢复前确定）：由 matrix 推导，等价于
+          # 原 Get Architecture 从 .config 的 CONFIG_TARGET_<arch>_... 解析首段 + arch_suffix
+          # 例：rockchip/armv8-3568→rockchip-3568；mediatek/filogic-mt7988→mediatek-mt7988
+          TARGET_DEVICE_ARCH="${{ matrix.arch }}"
+          TARGET_DEVICE_ARCH="${TARGET_DEVICE_ARCH%%/*}-${{ matrix.arch_suffix }}"
+
           cat <<EOF | tee -a $GITHUB_ENV
           seed=$seed
           artifact_prefix=$artifact_prefix
           sha_match=$sha_match
           ext4_zip=$ext4_zip
           sfs_zip=$sfs_zip
+          factory_zip=$factory_zip
           sysupgrade_glob=$sysupgrade_glob
           openwrt_source_name=$openwrt_source_name
+          TARGET_DEVICE_ARCH=$TARGET_DEVICE_ARCH
           EOF
 
       - name: Show system info
@@ -158,6 +190,8 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@main
+        with:
+          fetch-depth: 1
 
       - name: Init build dependencies
         env:
@@ -170,6 +204,9 @@ jobs:
           sudo -E npm install -g pnpm
           sudo -E npm install -g n
           sudo -E n stable
+          # sudo -E npm 保留 HOME，会把缓存以 root 属主写进 /home/runner/.npm，
+          # 编译期 smartdns-webui 等包的 npm install 以 runner 用户运行时 EACCES 崩溃
+          sudo chown -R runner:runner /home/runner/.npm
           pip3 install --user -U pylibfdt --break-system-packages
           sudo -E apt-get -qq autoremove --purge
           sudo -E apt-get -qq clean
@@ -186,16 +223,54 @@ jobs:
 
       - name: Prepare Package
         working-directory: ${{ github.workspace }}/openwrt
+        env:
+          ENABLE_LRNG: ${{ matrix.enable_lrng }}
         run: |
           cp -r ../SCRIPTS/. ./
           /bin/bash 02_prepare_package.sh
           /bin/bash 02_target_only.sh
           /bin/bash 04_remove_upx.sh
 
+      - name: Cache
+        if: inputs.build_firmware
+        uses: HiGarfield/cachewrtbuild@main
+        with:
+          mixkey: ${{ env.TARGET_DEVICE_ARCH }}
+          prefix: ${{ github.workspace }}/openwrt
+          skip_saving: ${{ !inputs.build_firmware }}
+
+      - name: Cache Go build
+        if: inputs.build_firmware
+        uses: actions/cache@v4
+        with:
+          path: |
+            $HOME/.cache/go-build
+            $HOME/go/pkg/mod
+          key: go-${{ matrix.name }}-${{ runner.os }}
+          restore-keys: |
+            go-${{ matrix.name }}-
+
+      - name: Determine seed profile
+        if: inputs.build_firmware
+        run: |
+          prof="${{ inputs.profile }}"; [ -z "$prof" ] && prof="auto"
+          if [ "$prof" = "full" ]; then sf="config.seed"
+          elif [ "$prof" = "minimal" ]; then sf="config.mini.seed"
+          else
+            # auto：缓存里已有工具链(此前成功编过)→完整；否则→最小（冷启动也能 6h 内完成并存缓存）
+            if ls "${{ github.workspace }}/openwrt/staging_dir/toolchain-"* >/dev/null 2>&1; then
+              sf="config.seed"; echo "seed-profile=full (cache hit)"
+            else
+              sf="config.mini.seed"; echo "seed-profile=minimal (no cache)"
+            fi
+          fi
+          echo "seed_file=$sf" >> $GITHUB_ENV
+          echo "profile=$prof" >> $GITHUB_ENV
+
       - name: QTMDFW4
         working-directory: ${{ github.workspace }}/openwrt
         run: |
-          cp -rf ../SEED/${{ env.seed }}/config.seed .config
+          cp -rf ../SEED/${{ env.seed }}/${{ env.seed_file }} .config
 
       - name: Convert Translation
         working-directory: ${{ github.workspace }}/openwrt
@@ -245,14 +320,6 @@ jobs:
             ${{ env.openwrt_source_name }}
           retention-days: 5
 
-      - name: Cache
-        if: inputs.build_firmware
-        uses: HiGarfield/cachewrtbuild@main
-        with:
-          mixkey: ${{ env.TARGET_DEVICE_ARCH }}
-          prefix: ${{ github.workspace }}/openwrt
-          skip_saving: ${{ !inputs.build_firmware }}
-
       - name: Make Download
         if: inputs.build_firmware
         working-directory: ${{ github.workspace }}/openwrt
@@ -262,6 +329,13 @@ jobs:
           fi
           make download -j50
           make -j$(($(nproc) + 1)) package/network/utils/nftables/refresh V=s
+          # OpenWrt 顶层 make download 为容错设计（包下载失败仍 exit 0），
+          # -j50 并行下的失败会被静默吞掉，直到编译期才暴露（可能浪费数小时）。
+          # 串行复扫一次让失败项浮出为 warning（缓存命中秒过，仅失败包重试）
+          dl_errs=$(make download -j1 2>&1 | grep -c "ERROR: package" || true)
+          if [ "${dl_errs}" -gt 0 ]; then
+            echo "::warning::make download 存在 ${dl_errs} 个失败包，编译阶段将重试（可能失败，请关注 Compile 阶段日志）"
+          fi
 
       # build_firmware
       - name: Compile Openwrt
@@ -271,7 +345,6 @@ jobs:
         continue-on-error: true
         run: |
           IGNORE_ERRORS=1 make -j$(($(nproc) + 1))
-          echo $?
       - name: If Error
         if: steps.compileopenwrt.outcome == 'failure'
         working-directory: ${{ github.workspace }}/openwrt
@@ -295,8 +368,10 @@ jobs:
           gzip --best *.img
           ls -Ahl
           sha256sum openwrt*${{ env.sha_match }}* | tee ${{ env.artifact_prefix }}-$(date +%Y-%m-%d)-${{ env.latest_release }}.sha256sum
-          zip ${{ env.artifact_prefix }}-$(date +%Y-%m-%d)-${{ env.latest_release }}-ext4.zip ${{ env.ext4_zip }}
-          zip ${{ env.artifact_prefix }}-$(date +%Y-%m-%d)-${{ env.latest_release }}-sfs.zip ${{ env.sfs_zip }}
+          # zip 容错：目标变体缺失（如 filogic 无 ext4、rockchip 无 factory）时跳过而非挂步
+          ls ${{ env.ext4_zip }} >/dev/null 2>&1 && zip ${{ env.artifact_prefix }}-$(date +%Y-%m-%d)-${{ env.latest_release }}-ext4.zip ${{ env.ext4_zip }} || true
+          ls ${{ env.sfs_zip }} >/dev/null 2>&1 && zip ${{ env.artifact_prefix }}-$(date +%Y-%m-%d)-${{ env.latest_release }}-sfs.zip ${{ env.sfs_zip }} || true
+          [ -n "${{ env.factory_zip }}" ] && ls ${{ env.factory_zip }} >/dev/null 2>&1 && zip ${{ env.artifact_prefix }}-$(date +%Y-%m-%d)-${{ env.latest_release }}-factory.zip ${{ env.factory_zip }} || true
           ls -Ahl
 
       - name: Create release
@@ -315,12 +390,3 @@ jobs:
 
       - name: Print Disk Space After
         run: df -h
-
-      - name: Trigger badge sync for current platform
-        if: github.workflow == 'OpenWrt-Matrix' && inputs.build_firmware && steps.create_release.outcome != 'skipped' && always()
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "Triggering badge sync for ${{ matrix.name }} with status: ${{ steps.create_release.outcome }}"
-          gh workflow run "${{ matrix.name }}-OpenWrt.yml" \
-            --field badge_status="${{ steps.create_release.outcome }}" || echo "Failed to trigger ${{ matrix.name }} workflow"
