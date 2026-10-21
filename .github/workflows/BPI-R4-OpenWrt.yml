@@ -1,0 +1,40 @@
+name: BPI-R4
+
+on:
+  workflow_dispatch:
+    inputs:
+      upload_source:
+        description: "Upload source folder before build"
+        required: false
+        type: boolean
+        default: false
+      build_firmware:
+        description: "Build and publish firmware"
+        required: false
+        type: boolean
+        default: true
+      profile:
+        description: "Profile: auto (no-cache->minimal, else full) / minimal / full"
+        required: false
+        type: choice
+        default: auto
+        options:
+          - auto
+          - minimal
+          - full
+
+# 同一时间只允许一个 BPI-R4 编译 run（手动触发串行排队，不打断进行中的编译）
+# watch(star) 触发已移除：owner==sender 守卫下他人 star 不会构建、自己 star 又属误触，形同虚设
+concurrency:
+  group: bpi-r4-build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    uses: ./.github/workflows/OpenWrt-Matrix.yml
+    if: github.event.repository.owner.id == github.event.sender.id
+    with:
+      targets: "BPI-R4"
+      upload_source: ${{ inputs.upload_source }}
+      build_firmware: ${{ inputs.build_firmware }}
+      profile: ${{ inputs.profile || 'auto' }}
