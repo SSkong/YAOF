@@ -11,7 +11,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:  
     - name: Delete Older Releases
-      uses: dev-drprasad/delete-older-releases@master
+      # 固定 commit SHA：v0.3.4 = dfbe6be（供应链锁定，原 @master 可被 force-push）
+      uses: dev-drprasad/delete-older-releases@dfbe6be2a006e9475dfcbe5b8d201f1824c2a9fe
       with:
         keep_latest: 20
         delete_tags: true
@@ -23,7 +24,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
     - name: Cleanup Old Action Artifacts
-      uses: c-hive/gha-remove-artifacts@main
+      # 固定 commit SHA：v1.8.0 = 62c2fbe
+      uses: c-hive/gha-remove-artifacts@62c2fbea931baa7dd4a6b73ea5a799984a818f61
       with:
           age: '3 days'
           skip-recent: 3
@@ -33,7 +35,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Cleanup Workflow Logs
-        uses: Mattraks/delete-workflow-runs@main
+        # 固定 commit SHA：v2.1.0 = b301838
+        uses: Mattraks/delete-workflow-runs@b3018382ca039b53d238908238bd35d1fb14f8ee
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}

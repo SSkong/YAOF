@@ -1,0 +1,9 @@
+CONFIG_TARGET_rockchip=y
+CONFIG_TARGET_rockchip_armv8=y
+CONFIG_TARGET_rockchip_armv8_DEVICE_hinlink_h68k=y
+# 说明：H68K 最小核心。不含任何代理/重依赖（无 dae/fchomo/passwall/ssr-plus/homeproxy/
+# /opt 自动分区。完整版见 config.seed。
+# RNGD - 使用 LRNG 方案（与完整版一致）
+# CONFIG_PACKAGE_urandom-seed is not set
+# CONFIG_PACKAGE_urngd is not set
+# /opt 自动分区所需: fstab/block 体系 + ext4 工具
