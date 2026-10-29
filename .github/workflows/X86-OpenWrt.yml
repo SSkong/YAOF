@@ -1,8 +1,6 @@
 name: X86-OpenWrt
 
 on:
-#  schedule:
-#    - cron: 5 6 * * 0
   workflow_dispatch:
     inputs:
       upload_source:
@@ -15,32 +13,27 @@ on:
         required: false
         type: boolean
         default: true
-      badge_status:
-        description: "badge status var（keep empty）"
+      profile:
+        description: "Profile: auto (no-cache->minimal, else full) / minimal / full"
         required: false
-        type: string
-        default: ''
-  watch:
-    types: started
+        type: choice
+        default: auto
+        options:
+          - auto
+          - minimal
+          - full
+
+# 同一时间只允许一个 X86 编译 run（手动触发串行排队，不打断进行中的编译）
+concurrency:
+  group: x86-build
+  cancel-in-progress: false
 
 jobs:
   build:
     uses: ./.github/workflows/OpenWrt-Matrix.yml
-    if: github.event.repository.owner.id == github.event.sender.id && inputs.badge_status == ''
+    if: github.event.repository.owner.id == github.event.sender.id
     with:
       targets: "X86"
-      upload_source: ${{ github.event_name == 'workflow_dispatch' && inputs.upload_source }}
-      build_firmware: ${{ (github.event_name == 'workflow_dispatch' && inputs.build_firmware) || github.event_name != 'workflow_dispatch' }}
-
-  sync_badge:
-    if: inputs.badge_status != ''
-    runs-on: ubuntu-latest
-    steps:
-      - name: Sync badge status
-        run: |
-          echo "Syncing badge status ...( ${{ inputs.badge_status }} )"
-          if [ "${{ inputs.badge_status }}" == "success" ]; then
-            exit 0
-          else
-            exit 1
-          fi
+      upload_source: ${{ inputs.upload_source }}
+      build_firmware: ${{ inputs.build_firmware }}
+      profile: ${{ inputs.profile || 'auto' }}

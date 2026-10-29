@@ -1,0 +1,22 @@
+# X86（x86/64 generic，官方 25.12 树原生支持；LRNG 可开，与 H68K 同方案）
+CONFIG_TARGET_x86=y
+CONFIG_TARGET_x86_64=y
+CONFIG_TARGET_x86_64_DEVICE_generic=y
+CONFIG_TARGET_KERNEL_PARTSIZE=32
+CONFIG_TARGET_ROOTFS_PARTSIZE=822
+CONFIG_GRUB_TIMEOUT="0"
+# RNGD - 使用 LRNG 方案（与 H68K 一致）
+# CONFIG_PACKAGE_urandom-seed is not set
+# CONFIG_PACKAGE_urngd is not set
+# X86 专属：状态页 + 常见有线/万兆网卡 + Intel 核显
+CONFIG_PACKAGE_autocore-x86=y
+CONFIG_PACKAGE_kmod-igc=y
+CONFIG_PACKAGE_kmod-r8125=y
+CONFIG_PACKAGE_kmod-igb-intel=y
+CONFIG_PACKAGE_kmod-i40e=y
+CONFIG_PACKAGE_kmod-mlx4-core=y
+CONFIG_PACKAGE_kmod-mlx5-core=y
+CONFIG_PACKAGE_kmod-ixgbevf=y
+CONFIG_PACKAGE_kmod-iavf=y
+CONFIG_PACKAGE_kmod-drm-i915=y
+CONFIG_PACKAGE_i915-firmware-dmc=y
